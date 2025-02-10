@@ -58,10 +58,6 @@ long long modInverse(long long a, long long m) {
     return x1;
 }
 
-long long calculateTotient(long long p, long long q) {
-    return (p - 1) * (q - 1);
-}
-
 int letterToNumber(char c) {
     return toupper(c) - 'A';
 }
@@ -70,19 +66,42 @@ char numberToLetter(int num) {
     return static_cast<char>((num % 26) + 'A');
 }
 
-vector<long long> textToNumbers(const string& text) {
-    vector<long long> numbers;
-    cout << "\nConverting text to numbers (A=0, B=1, ..., Z=25):\n";
-    for (char c : text) {
-        if (isalpha(c)) {
-            int num = letterToNumber(c);
-            cout << "'" << (char)toupper(c) << "' -> " << num << endl;
-            numbers.push_back(num);
-        } else {
-            cout << "Warning: Skipping non-alphabetic character '" << c << "'\n";
+vector<long long> textToBlocks(const string& text) {
+    vector<long long> blocks;
+    cout << "\nConverting text to number blocks:\n";
+    
+    for (size_t i = 0; i < text.length(); i += 2) {
+        long long block = 0;
+        if (isalpha(text[i])) {
+            block = letterToNumber(text[i]) * 100;
+            
+            if (i + 1 < text.length() && isalpha(text[i + 1])) {
+                block += letterToNumber(text[i + 1]);
+            }
+            
+            cout << "'" << (char)toupper(text[i]);
+            if (i + 1 < text.length() && isalpha(text[i + 1])) {
+                cout << (char)toupper(text[i + 1]);
+            }
+            cout << "' -> " << block << endl;
+            
+            blocks.push_back(block);
         }
     }
-    return numbers;
+    return blocks;
+}
+
+string blocksToText(const vector<long long>& blocks) {
+    string text;
+    for (long long block : blocks) {
+        int first = block / 100;
+        int second = block % 100;
+        text += numberToLetter(first);
+        if (second < 26) {
+            text += numberToLetter(second);
+        }
+    }
+    return text;
 }
 
 vector<long long> encryptWithSteps(const vector<long long>& numbers, long long e, long long n) {
@@ -91,7 +110,7 @@ vector<long long> encryptWithSteps(const vector<long long>& numbers, long long e
     cout << "Using public key (e, n): (" << e << ", " << n << ")\n";
     
     for (size_t i = 0; i < numbers.size(); i++) {
-        cout << "\nEncrypting number " << numbers[i] << ":\n";
+        cout << "\nEncrypting block " << numbers[i] << ":\n";
         cout << "C = M^e mod n\n";
         cout << "C = " << numbers[i] << "^" << e << " mod " << n << endl;
         
@@ -116,17 +135,16 @@ vector<long long> decryptWithSteps(const vector<long long>& numbers, long long d
         long long result = modPow(numbers[i], d, n);
         cout << "M = " << result << endl;
         
-        char letter = numberToLetter(result);
-        cout << "Converting " << result << " back to letter: " << letter << endl;
-        cout << "-----------------------------\n";
+        cout << "Block " << result << " represents: ";
+        int first = result / 100;
+        int second = result % 100;
+        cout << numberToLetter(first);
+        if (second < 26) {
+            cout << numberToLetter(second);
+        }
+        cout << endl << "-----------------------------\n";
         
         decrypted.push_back(result);
-    }
-    
-    cout << "\nDecryption Summary:\n";
-    for (size_t i = 0; i < numbers.size(); i++) {
-        cout << numbers[i] << " -> " << decrypted[i] << " -> '" 
-             << numberToLetter(decrypted[i]) << "'" << endl;
     }
     
     return decrypted;
@@ -156,113 +174,86 @@ int main() {
             continue;
         }
 
-        if (mainChoice == '1') {  // Encryption
-            cout << "\nKey Input Options:\n";
-            cout << "1. Enter p, q, and e\n";
-            cout << "2. Enter n and e\n";
-            cout << "Enter choice (1-2): ";
-            cin >> keyChoice;
+        cout << "\nKey Input Options:\n";
+        cout << "1. Enter p, q, and e/d\n";
+        cout << "2. Enter n and e/d\n";
+        cout << "Enter choice (1-2): ";
+        cin >> keyChoice;
 
-            if (keyChoice == '1') {
-                cout << "Enter two prime numbers (p and q): ";
-                cin >> p >> q;
-                n = p * q;
-                long long phi = (p - 1) * (q - 1);
+        if (keyChoice == '1') {
+            cout << "\nEnter first prime number (p): ";
+            cin >> p;
+            cout << "Enter second prime number (q): ";
+            cin >> q;
+            n = p * q;
+            long long phi = (p - 1) * (q - 1);
 
-                cout << "Step 1: Calculate n = p * q\n";
-                cout << "n = " << p << " * " << q << " = " << n << endl;
-                
-                cout << "Step 2: Calculate φ(n) = (p-1)(q-1)\n";
-                cout << "φ(n) = (" << p << "-1)(" << q << "-1) = " << phi << endl;
+            cout << "\nStep 1: Calculate n = p * q\n";
+            cout << "n = " << p << " * " << q << " = " << n << endl;
+            
+            cout << "\nStep 2: Calculate φ(n) = (p-1)(q-1)\n";
+            cout << "φ(n) = (" << p << "-1)(" << q << "-1) = " << phi << endl;
 
-                cout << "Enter e (1 < e < " << phi << " and gcd(e, " << phi << ") = 1): ";
+            if (mainChoice == '1') {
+                cout << "\nEnter public exponent (e): ";
+                cout << "\n(1 < e < " << phi << " and gcd(e, " << phi << ") = 1): ";
                 cin >> e;
                 while (gcd(e, phi) != 1) {
-                    cout << "Invalid e. Enter e again: ";
+                    cout << "Invalid e. Please enter a valid value for e: ";
                     cin >> e;
                 }
-
                 d = modInverse(e, phi);
-                cout << "Private key d has been calculated: " << d << endl;
+                cout << "\nPrivate key d has been calculated: " << d << endl;
+            } else {
+                cout << "\nEnter private exponent (d): ";
+                cin >> d;
+                e = modInverse(d, phi);
+                cout << "\nPublic key e has been calculated: " << e << endl;
             }
-            else if (keyChoice == '2') {
-                cout << "Enter n: ";
-                cin >> n;
-                cout << "Enter e: ";
+        }
+        else if (keyChoice == '2') {
+            cout << "\nEnter modulus (n): ";
+            cin >> n;
+            if (mainChoice == '1') {
+                cout << "Enter public exponent (e): ";
                 cin >> e;
+            } else {
+                cout << "Enter private exponent (d): ";
+                cin >> d;
             }
-            else {
-                cout << "Invalid choice!\n";
-                continue;
-            }
+        }
+        else {
+            cout << "Invalid choice!\n";
+            continue;
+        }
 
+        if (mainChoice == '1') {
             cout << "\nEnter text to encrypt (letters only): ";
             cin.ignore();
             getline(cin, text);
-
-            cout << "\nPublic key (e, n): (" << e << ", " << n << ")\n";
-
-            vector<long long> numbers = textToNumbers(text);
-            cout << "\nConverting letters to numbers (A=1, B=2, ..., Z=26):\n";
-            int i = 0;
-            for (char c : text) {
-                if (isalpha(c)) {
-                    cout << "'" << (char)toupper(c) << "' -> " << numbers[i] << endl;
-                    i++;
-                }
-            }
-
+            numbers = textToBlocks(text);
             vector<long long> encrypted = encryptWithSteps(numbers, e, n);
-
-            cout << "\nEncryption steps:\n";
-            i = 0;
-            for (char c : text) {
-                if (isalpha(c)) {
-                    cout << "'" << (char)toupper(c) << "' (" << numbers[i] << "):\n";
-                    cout << "C = " << numbers[i] << "^" << e << " mod " << n << " = " 
-                         << encrypted[i] << endl;
-                    i++;
-                }
-            }
-
+            
             cout << "\nFinal encrypted values:\n";
-            i = 0;
-            for (char c : text) {
-                if (isalpha(c)) {
-                    cout << "'" << (char)toupper(c) << "' -> " << encrypted[i] << endl;
-                    i++;
-                }
+            for (size_t i = 0; i < encrypted.size(); i++) {
+                cout << "Block " << i + 1 << ": " << encrypted[i] << endl;
             }
         } 
-        else if (mainChoice == '2') {  // Decryption
-            cout << "\nDecryption requires private key (d) and modulus (n)\n";
-            cout << "Enter n: ";
-            cin >> n;
-            cout << "Enter d: ";
-            cin >> d;
-
-            cout << "\nEnter number of values to decrypt: ";
+        else {
+            cout << "\nEnter number of encrypted blocks: ";
             int count;
             cin >> count;
-
-            cout << "Enter encrypted values (one per line):\n";
+            cout << "\nEnter each encrypted value:\n";
             numbers.clear();
             for (int i = 0; i < count; i++) {
+                cout << "Block " << i + 1 << ": ";
                 long long val;
                 cin >> val;
                 numbers.push_back(val);
             }
-
-            cout << "\nDecryption steps:\n";
             vector<long long> decrypted = decryptWithSteps(numbers, d, n);
-
-            cout << "\nFinal decrypted text: ";
-            for (long long num : decrypted) {
-                cout << numberToLetter(num);
-            }
-            cout << endl;
+            cout << "\nFinal decrypted text: " << blocksToText(decrypted) << endl;
         }
     }
-
     return 0;
 }
